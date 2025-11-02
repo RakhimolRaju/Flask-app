@@ -1,0 +1,42 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+trigger:
+- main
+
+pool:
+  name: UbuntuLocalPool
+
+steps:
+# Step 1 – Install dependencies
+- script: |
+    sudo apt update
+    sudo apt install -y python3 python3-pip docker.io
+  displayName: 'Install prerequisites'
+
+# Step 2 – Build Docker image
+- script: |
+    docker build -t flaskapp:latest .
+  displayName: 'Build Docker Image'
+
+# Step 3 – Run container locally (for verification)
+- script: |
+    docker stop flaskapp || true
+    docker rm flaskapp || true
+    docker run -d -p 5000:5000 --name flaskapp flaskapp:latest
+    sleep 5
+    curl -I http://127.0.0.1:5000 || true
+  displayName: 'Run and Test Docker Container'
+
+# Step 4 – Push image to Docker Hub
+# Uncomment after you create a Docker Hub Service Connection
+# - task: Docker@2
+#   displayName: 'Push Docker Image to Docker Hub'
+#   inputs:
+#     containerRegistry: 'DockerHubServiceConnection'
+#     repository: 'your-dockerhub-username/flaskapp'
+#     command: 'buildAndPush'
+#     Dockerfile: '**/Dockerfile'
+#     tags: |
+#       latest
