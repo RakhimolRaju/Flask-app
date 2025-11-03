@@ -43,7 +43,7 @@ steps:
 # Step 5 – Auto-Deploy to AWS EC2 (optional automation)
 - script: |
     echo "=== Deploying updated container on EC2 ==="
-    echo "$EC2_SSH_KEY" | base64 -d > ec2_key.pem
+    echo "$EC2_SSH_KEY" | base64 --decode > ec2_key.pem
     chmod 600 ec2_key.pem
     ssh -o StrictHostKeyChecking=no -i ec2_key.pem ubuntu@<YOUR-EC2-PUBLIC-IP> "
       cd ~/Flask-app &&
