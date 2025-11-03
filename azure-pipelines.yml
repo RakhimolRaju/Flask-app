@@ -40,14 +40,15 @@ steps:
     curl -I http://127.0.0.1:5000 || true
   displayName: 'Run and Test Docker Container'
 
-# Step 5 - Auto-deploy to AWS EC2
+# Step 5 – Auto-Deploy to AWS EC2 (optional automation)
 - script: |
     echo "=== Deploying updated container on EC2 ==="
-    
-    # Save SSH key with correct formatting
-    echo "$EC2_SSH_KEY" | sed 's/\\n/\n/g' > ec2_key.pem
-    chmod 600 ec2_key.pem
+    echo "$EC2_SSH_KEY" | tr -d '\r' | sed 's/\\n/\n/g' > ec2_key.pem
 
+    echo "===== DEBUG: First few lines of the key file ====="
+    head -n 5 ec2_key.pem | sed 's/.\{5\}$/XXXXX/'
+
+    chmod 600 ec2_key.pem
     ssh -o StrictHostKeyChecking=no -i ec2_key.pem ubuntu@18.202.197.233 "
       cd ~/Flask-app &&
       git pull origin main &&
