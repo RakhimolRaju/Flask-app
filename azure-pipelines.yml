@@ -42,28 +42,21 @@ steps:
 
 # Step 5 - Auto-deploy to AWS EC2
 - script: |
-    echo "===== Deploying updated Flask container on EC2 ====="
-    echo "$EC2_SSH_KEY" > ec2_key.pem
+    echo "=== Deploying updated container on EC2 ==="
+    
+    # Save SSH key with correct formatting
+    echo "$EC2_SSH_KEY" | sed 's/\\n/\n/g' > ec2_key.pem
     chmod 600 ec2_key.pem
 
-    ssh -o StrictHostKeyChecking=no -i ec2_key.pem ubuntu@18.202.197.233 << 'EOF'
-      cd ~/Flask-app
-      echo "Pulling latest code from GitHub..."
-      git pull origin main
-
-      echo "Stopping old container..."
-      docker stop flaskapp || true
-      docker rm flaskapp || true
-
-      echo "Rebuilding Docker image..."
-      docker build -t flaskapp:latest .
-
-      echo "Running new container..."
+    ssh -o StrictHostKeyChecking=no -i ec2_key.pem ubuntu@18.202.197.233 "
+      cd ~/Flask-app &&
+      git pull origin main &&
+      docker stop flaskapp || true &&
+      docker rm flaskapp || true &&
+      docker rmi flaskapp:latest || true &&
+      docker build -t flaskapp:latest . &&
       docker run -d -p 5000:5000 --name flaskapp flaskapp:latest
-
-      echo "Deployment complete. Current running containers:"
-      docker ps
-    EOF
+    "
   displayName: 'Auto-Deploy Container on EC2'
   env:
     EC2_SSH_KEY: $(EC2_SSH_KEY)
