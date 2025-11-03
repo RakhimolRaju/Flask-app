@@ -1,8 +1,12 @@
 trigger:
-- main
+- main  # Automatically run when push changes to main branch
 
+# Use self-hosted pool (Azure agent on Ubuntu EC2/VM)
 pool:
   name: UbuntuLocalPool
+
+variables:
+- group: EC2-SSH-Keys  # Reference the variable group created earlier
 
 steps:
 # Step 1 - Checkout source code
@@ -11,7 +15,8 @@ steps:
 
 # Step 2 - Install dependencies
 - script: |
-    sudo apt update
+    echo "Installing Python, pip, Flask, and Docker..."
+    sudo apt update -y
     sudo apt install -y python3 python3-pip docker.io
     python3 -m pip install --upgrade pip
     pip install flask
@@ -19,25 +24,46 @@ steps:
 
 # Step 3 - Build Docker image
 - script: |
+    echo "Building Docker image..."
     cd $(Build.SourcesDirectory)
-    ls -la
     docker build -t flaskapp:latest .
   displayName: 'Build Docker Image'
 
-# Step 4 - Run container locally (for verification)
+# Step 4 - Run container locally for verification
 - script: |
+    echo "Running container locally for verification..."
     docker stop flaskapp || true
     docker rm flaskapp || true
     docker run -d -p 5000:5000 --name flaskapp flaskapp:latest
     sleep 5
+    echo "Checking Flask response..."
     curl -I http://127.0.0.1:5000 || true
   displayName: 'Run and Test Docker Container'
 
-# Step 5 – Deploy (auto-restart container)
+# Step 5 - Auto-deploy to AWS EC2
 - script: |
-    echo "Deploying new container..."
-    docker stop flaskapp || true
-    docker rm flaskapp || true
-    docker run -d -p 5000:5000 --name flaskapp flaskapp:latest
-    docker image prune -f
+    echo "===== Deploying updated Flask container on EC2 ====="
+    echo "$EC2_SSH_KEY" > ec2_key.pem
+    chmod 600 ec2_key.pem
+
+    ssh -o StrictHostKeyChecking=no -i ec2_key.pem ubuntu@18.202.197.233 << 'EOF'
+      cd ~/Flask-app
+      echo "Pulling latest code from GitHub..."
+      git pull origin main
+
+      echo "Stopping old container..."
+      docker stop flaskapp || true
+      docker rm flaskapp || true
+
+      echo "Rebuilding Docker image..."
+      docker build -t flaskapp:latest .
+
+      echo "Running new container..."
+      docker run -d -p 5000:5000 --name flaskapp flaskapp:latest
+
+      echo "Deployment complete. Current running containers:"
+      docker ps
+    EOF
   displayName: 'Auto-Deploy Container on EC2'
+  env:
+    EC2_SSH_KEY: $(EC2_SSH_KEY)
